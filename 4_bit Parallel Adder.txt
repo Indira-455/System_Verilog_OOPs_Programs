@@ -1,0 +1,86 @@
+4 – bit Parallel Adder:
+Design Code:
+
+module add_sub_4bit (a,b,mode,sum,cout);
+    input [3:0]a,b;
+    input mode; 
+    output [3:0]sum;
+    output cout;
+  logic [3:0] b_mod;
+    logic cin;
+  assign b_mod =(mode)?~b:b; 
+    assign cin =mode;    
+  assign {cout,sum} = a+b_mod+cin;
+endmodule
+
+Test Bench:
+interface inter;
+  logic [3:0]a,b;
+  logic mode; 
+  logic [3:0]sum;
+  logic cout;
+endinterface
+
+class generator;
+    mailbox mbx;
+    task run();
+        for (int i=0;i<5;i++) begin
+          bit [3:0]a=$urandom_range(0, 15);
+          bit [3:0]b=$urandom_range(0, 15);
+            bit mode=$urandom_range(0, 1);
+          mbx.put({a,b,mode});
+          $display("Generator Stimulus: a=%0d b=%0d mode=%0b", a,b,mode);
+            #10; 
+        end
+    endtask
+endclass
+
+class driver;
+    mailbox mbx;
+    virtual inter vif;
+    task run();
+        forever begin
+          bit [8:0]temp; 
+          mbx.get(temp);
+            vif.a=temp[8:5];
+            vif.b=temp[4:1];
+            vif.mode=temp[0];
+            #10; 
+          $display(" Driver Values: a=%0d b=%0d mode=%0b sum=%0d cout=%0b",vif.a,vif.b,vif.mode,vif.sum,vif.cout);
+        end
+    endtask
+endclass
+
+module tb;
+    inter asif();
+  add_sub_4bit dut (
+    .a(asif.a), .b(asif.b), .mode(asif.mode),.sum(asif.sum), .cout(asif.cout));
+    generator gen; 
+    driver drv;
+    mailbox mbx;
+    initial begin
+        gen = new();
+        drv = new();
+        mbx = new();
+        gen.mbx = mbx;
+        drv.mbx = mbx;
+        drv.vif = asif;
+        fork
+            gen.run();
+            drv.run();
+        join
+    end
+  end
+endmodule
+
+Output:
+# KERNEL: Generator Stimulus: a=15 b=6 mode=1
+# KERNEL:  Driver Values: a=15 b=6 mode=1 sum=9 cout=1
+# KERNEL: Generator Stimulus: a=12 b=15 mode=1
+# KERNEL:  Driver Values: a=12 b=15 mode=1 sum=13 cout=0
+# KERNEL: Generator Stimulus: a=11 b=13 mode=0
+# KERNEL:  Driver Values: a=11 b=13 mode=0 sum=8 cout=1
+# KERNEL: Generator Stimulus: a=15 b=15 mode=1
+# KERNEL:  Driver Values: a=15 b=15 mode=1 sum=0 cout=1
+# KERNEL: Generator Stimulus: a=2 b=7 mode=0
+# KERNEL:  Driver Values: a=2 b=7 mode=0 sum=9 cout=0 
