@@ -1,0 +1,96 @@
+8 to 3 Encoder:
+Design Code:
+
+module encoder_8_3(in,out);
+  input [7:0]in;
+  output logic[2:0]out;
+  always@(*)
+    begin
+      case(in)
+        8'b00000001:out=3'b000;
+        8'b00000010:out=3'b001;
+        8'b00000100:out=3'b010;
+        8'b00001000:out=3'b011;
+        8'b00010000:out=3'b100;
+        8'b00100000:out=3'b101;
+        8'b01000000:out=3'b110;
+        8'b10000000:out=3'b111;
+        default:out = 3'bxxx;
+      endcase
+    end
+endmodule
+
+Test Bench:
+interface inter;
+  logic [7:0]in;
+  logic [2:0]out;
+endinterface
+
+class generator;
+  mailbox mbx;
+  task run();
+    for(int i=0;i<8;i++) begin
+      bit [7:0]in = 8'b00000001 << i;
+      mbx.put(in);
+      $display(" Generator stimulus: in=%b",in);
+    end
+  endtask
+endclass
+
+class driver;
+  virtual inter vif;
+  mailbox mbx;
+  task run();
+    forever begin
+      bit [7:0]in;
+      mbx.get(in);
+      vif.in=in;
+      #10;
+      $display("Driver values : in=%b,out=%b",vif.in,vif.out);
+    end
+  endtask
+  endclass
+
+module tb();
+  inter encif(); 
+  encoder_8_3 DUT (.in(encif.in),.out(encif.out));
+  generator gen;
+  driver div;
+  mailbox mbx;
+  initial
+    begin
+      gen=new();
+      div=new();
+      mbx=new();
+      gen.mbx=mbx;
+      div.mbx=mbx;
+      div.vif=encif;
+      fork
+        gen.run();
+        div.run();
+      join
+    end
+  initial
+    begin
+      $dumpfile("dump.vcd");
+      $dumpvars;
+    end
+endmodule
+
+Output:
+# KERNEL:  Generator stimulus: in=00000001
+# KERNEL:  Generator stimulus: in=00000010
+# KERNEL:  Generator stimulus: in=00000100
+# KERNEL:  Generator stimulus: in=00001000
+# KERNEL:  Generator stimulus: in=00010000
+# KERNEL:  Generator stimulus: in=00100000
+# KERNEL:  Generator stimulus: in=01000000
+# KERNEL:  Generator stimulus: in=10000000
+# KERNEL: Driver values : in=00000001,out=000
+# KERNEL: Driver values : in=00000010,out=001
+# KERNEL: Driver values : in=00000100,out=010
+# KERNEL: Driver values : in=00001000,out=011
+# KERNEL: Driver values : in=00010000,out=100
+# KERNEL: Driver values : in=00100000,out=101
+# KERNEL: Driver values : in=01000000,out=110
+# KERNEL: Driver values : in=10000000,out=111
