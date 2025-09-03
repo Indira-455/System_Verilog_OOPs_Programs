@@ -1,0 +1,82 @@
+4 To 2 Encoder:
+Design Code:
+
+Module encoder_4_2(in,out);
+Input [3:0]in;
+Output [1:0]out;
+always@(*)
+begin
+case(in)
+4’b0001: out=2’b00;
+4’b0010: out=2’b01;
+4’b0100: out=2’b10;
+4’b1000: out=2’b11;
+Default:out = 2’bxx;
+endcase
+end
+endmodule
+
+Test Bench:
+interface inter;
+  logic [3:0] in;   
+  logic [1:0] out;  
+endinterface
+
+class generator;
+  mailbox mbx;
+  task run();
+    for (int i = 0; i < 4; i++) begin
+      bit [3:0] in = 4'b0001 << i;
+      mbx.put(in);
+      $display("Generator: in=%04b", in);
+    end
+  endtask
+endclass
+
+class driver;
+  mailbox mbx;
+  virtual inter vif;
+  task run();
+    forever begin
+      bit [3:0] in;
+      mbx.get(in);
+      vif.in = in;
+      #10; 
+      $display("Driver: in=%04b -> out=%b", vif.in, vif.out);
+    end
+  endtask
+endclass
+
+module tb;
+  inter encif();
+  encoder_4_2 dut (.in(encif.in), .out(encif.out));
+  generator gen;
+  driver drv;
+  mailbox mbx;
+  initial begin
+    gen = new();
+    drv = new();
+    mbx = new();
+    gen.mbx = mbx;
+    drv.mbx = mbx;
+    drv.vif = encif;
+    fork
+      gen.run();
+      drv.run();
+    join
+  end
+  initial begin
+    $dumpfile("dump.vcd");
+    $dumpvars;
+  end
+endmodule
+
+Output:
+# KERNEL: Generator: in=0001
+# KERNEL: Generator: in=0010
+# KERNEL: Generator: in=0100
+# KERNEL: Generator: in=1000
+# KERNEL: Driver: in=0001 -> out=00
+# KERNEL: Driver: in=0010 -> out=01
+# KERNEL: Driver: in=0100 -> out=10
+# KERNEL: Driver: in=1000 -> out=11
