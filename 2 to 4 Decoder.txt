@@ -1,0 +1,92 @@
+2 to 4 Decoder:
+Design Code:
+
+module decoder_2_4(en,in,out);
+  input en;
+  input [1:0]in;
+  output logic [3:0]out;
+  always@(*)
+    begin
+      if(en==1) 
+      begin
+      case(in)
+        2'b00:out=4'b0001;
+        2'b01:out=4'b0010;
+        2'b10:out=4'b0100;
+        2'b11:out=4'b1000;
+      default: out = 4’b0000;
+      endcase
+    end
+    else begin
+      out=4'b0000; 
+    end
+  end
+endmodule
+
+Test Bench:
+interface inter;
+  logic en;
+  logic [1:0]in;    
+  logic [3:0]out;            
+endinterface
+
+class generator;
+  mailbox mbx;
+  task run();
+    for (int i = 0; i < 4; i++) begin
+      bit [1:0] in = i[1:0];
+      bit en= 1'b1; 
+      mbx.put({en, in});
+      $display("Generator stimulus: en=%0b, in=%b", en, in);
+    end
+  endtask
+endclass
+
+class driver;
+  mailbox mbx;
+  virtual inter vif;
+  task run();
+    forever begin
+      bit [2:0] temp; 
+      mbx.get(temp);
+      vif.en = temp[2];
+      vif.in = temp[1:0];
+      #10; 
+      $display("Driver Values: en=%0b, in=%b -> out=%b", vif.en,vif.in,vif.out);
+    end
+  endtask
+endclass
+
+module tb;
+  inter decif();
+  decoder_2_4 dut (.en(decif.en),.in(decif.in),.out(decif.out));
+  generator gen;
+  driver drv;
+  mailbox mbx;
+  initial begin
+    gen = new();
+    drv = new();
+    mbx = new();
+    gen.mbx = mbx;
+    drv.mbx = mbx;
+    drv.vif = decif;
+    fork
+      gen.run();
+      drv.run();
+    join_none
+  end
+  initial begin
+    $dumpfile("dump.vcd");
+    $dumpvars;
+  end
+endmodule
+
+Output:
+# KERNEL: Generator stimulus: en=1, in=00
+# KERNEL: Generator stimulus: en=1, in=01
+# KERNEL: Generator stimulus: en=1, in=10
+# KERNEL: Generator stimulus: en=1, in=11
+# KERNEL: Driver Values: en=1, in=00 -> out=0001
+# KERNEL: Driver Values: en=1, in=01 -> out=0010
+# KERNEL: Driver Values: en=1, in=10 -> out=0100
+# KERNEL: Driver Values: en=1, in=11 -> out=1000
