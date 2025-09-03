@@ -1,0 +1,128 @@
+16 x 1 Multiplexer:
+Design Code:
+
+module mux_16_1(in,sel,out);
+  input [15:0]in;
+  input [3:0]sel;
+  output logic out;
+  always@(*)
+    begin
+      case(sel)
+        4'b0000:out=in[0];
+        4'b0001:out=in[1];
+        4'b0010:out=in[2];
+        4'b0011:out=in[3];
+        4'b0100:out=in[4];
+        4'b0101:out=in[5];
+        4'b0110:out=in[6];
+        4'b0111:out=in[7];
+        4'b1000:out=in[8];
+        4'b1001:out=in[9];
+        4'b1010:out=in[10];
+        4'b1011:out=in[11];
+        4'b1100:out=in[12];
+        4'b1101:out=in[13];
+        4'b1110:out=in[14];
+        4'b1111:out=in[15];
+        default:out=1'b0;
+      endcase
+    end
+endmodule
+
+Test Bench:
+interface inter;
+  logic [15:0]in;
+  logic [3:0]sel;
+  logic out;
+endinterface
+
+class generator;
+  mailbox mbx;
+  task run();
+    for(int i=0;i<16;i++) begin
+      bit [3:0]sel = i;
+      bit [15:0]in = $urandom_range(1,(2)**16);
+      mbx.put({sel[3:0],in[15:0]});
+      $display("Generator Values: sel=%b,in=%b",sel,in);
+    end
+  endtask
+endclass
+
+class driver;
+  virtual inter vif;
+  mailbox mbx;
+  task run();
+  forever begin
+    bit [19:0] temp;
+    bit [3:0] sel;
+    bit [15:0] in;
+    mbx.get(temp);
+    sel = temp[19:16];
+    in = temp[15:0];
+    vif.sel = sel;
+    vif.in = in;
+    #10;
+    $display("Driver Values: sel=%b, in=%b, out=%b", vif.sel, vif.in, vif.out);
+  end
+endtask
+endclass
+
+module tb();
+  inter muxif();
+  mux_16_1 DUT (.in(muxif.in),.sel(muxif.sel),.out(muxif.out));
+  generator gen;
+  mailbox mbx;
+  driver div;
+  initial 
+    begin
+      gen=new();
+      div=new();
+      mbx=new();
+      gen.mbx=mbx;
+      div.mbx=mbx;
+      div.vif=muxif;
+      fork
+        gen.run();
+        div.run();
+      join
+    end
+  initial
+    begin
+      $dumpfile("dump.vcd");
+      $dumpvars;
+    end
+endmodule
+
+Output:
+# KERNEL: Generator Values: sel=0000,in=0010000011010000
+# KERNEL: Generator Values: sel=0001,in=0100111100010111
+# KERNEL: Generator Values: sel=0010,in=0011011011010010
+# KERNEL: Generator Values: sel=0011,in=0000100111001101
+# KERNEL: Generator Values: sel=0100,in=1001100010100000
+# KERNEL: Generator Values: sel=0101,in=0101111100010000
+# KERNEL: Generator Values: sel=0110,in=0110100100001100
+# KERNEL: Generator Values: sel=0111,in=0000011110111110
+# KERNEL: Generator Values: sel=1000,in=1001010101110101
+# KERNEL: Generator Values: sel=1001,in=0011001011000000
+# KERNEL: Generator Values: sel=1010,in=0010010100100000
+# KERNEL: Generator Values: sel=1011,in=0110110110001000
+# KERNEL: Generator Values: sel=1100,in=0011101011010011
+# KERNEL: Generator Values: sel=1101,in=1101100000111000
+# KERNEL: Generator Values: sel=1110,in=1011110100010101
+# KERNEL: Generator Values: sel=1111,in=0010010111000001
+# KERNEL: Driver Values: sel=0000, in=0010000011010000, out=0
+# KERNEL: Driver Values: sel=0001, in=0100111100010111, out=1
+# KERNEL: Driver Values: sel=0010, in=0011011011010010, out=0
+# KERNEL: Driver Values: sel=0011, in=0000100111001101, out=1
+# KERNEL: Driver Values: sel=0100, in=1001100010100000, out=0
+# KERNEL: Driver Values: sel=0101, in=0101111100010000, out=0
+# KERNEL: Driver Values: sel=0110, in=0110100100001100, out=0
+# KERNEL: Driver Values: sel=0111, in=0000011110111110, out=1
+# KERNEL: Driver Values: sel=1000, in=1001010101110101, out=1
+# KERNEL: Driver Values: sel=1001, in=0011001011000000, out=1
+# KERNEL: Driver Values: sel=1010, in=0010010100100000, out=1
+# KERNEL: Driver Values: sel=1011, in=0110110110001000, out=1
+# KERNEL: Driver Values: sel=1100, in=0011101011010011, out=1
+# KERNEL: Driver Values: sel=1101, in=1101100000111000, out=0
+# KERNEL: Driver Values: sel=1110, in=1011110100010101, out=0
+# KERNEL: Driver Values: sel=1111, in=0010010111000001, out=0
