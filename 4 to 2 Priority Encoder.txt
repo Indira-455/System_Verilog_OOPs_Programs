@@ -1,0 +1,82 @@
+4 to 2 Priority Encoder:
+Design Code:
+
+module priority_encoder_4to2(in,out);
+  input [3:0]in;
+  output logic[1:0]out;
+  always@(*)
+    begin
+    casex(in)
+      4'b0001: out = 2'b00;
+      4'b001x: out = 2'b01;
+      4'b01xx: out = 2'b10;  
+      4'b1xxx: out = 2'b11; 
+      default: out = 2'b00;
+    endcase
+    end
+endmodule
+
+Test Bench:
+interface inter;
+  logic [3:0] in;   
+  logic [1:0] out;  
+endinterface
+
+class generator;
+  mailbox mbx;
+  task run();
+    for (int i = 0; i < 4; i++) begin
+      bit [3:0] in = $urandom_range(0,15);
+      mbx.put(in);
+      $display("Generator: in=%b", in);
+    end
+  endtask
+endclass
+
+class driver;
+  mailbox mbx;
+  virtual inter vif;
+  task run();
+    forever begin
+      bit [3:0] in;
+      mbx.get(in);
+      vif.in = in;
+      #10;
+      $display("Driver: in=%b -> out=%b", vif.in, vif.out);
+    end
+  endtask
+endclass
+
+module tb();
+  inter encif();
+  priority_encoder_4to2 dut (.in(encif.in), .out(encif.out));
+  generator gen;
+  driver drv;
+  mailbox mbx;
+  initial begin
+    gen = new();
+    drv = new();
+    mbx = new();
+    gen.mbx = mbx;
+    drv.mbx = mbx;
+    drv.vif = encif;
+    fork
+      gen.run();
+      drv.run();
+    join
+  end
+  initial begin
+    $dumpfile("dump.vcd");
+    $dumpvars;
+  end
+endmodule
+
+Output:
+# KERNEL: Generator: in=1111
+# KERNEL: Generator: in=0110
+# KERNEL: Generator: in=0001
+# KERNEL: Generator: in=1100
+# KERNEL: Driver: in=1111 -> out=11
+# KERNEL: Driver: in=0110 -> out=10
+# KERNEL: Driver: in=0001 -> out=00
+# KERNEL: Driver: in=1100 -> out=11 
