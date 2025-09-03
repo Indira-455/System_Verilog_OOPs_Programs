@@ -1,0 +1,80 @@
+Half Adder: 
+Design Code: 
+
+module ha(a,b,sum,carry); 
+input a,b; 
+output sum,carry; 
+assign sum = a ^ b; 
+assign carry = a & b; 
+endmodule 
+Test Bench: 
+interface inter; 
+logic a; 
+logic b; 
+logic sum; 
+logic carry; 
+endinterface 
+ 
+class generator; 
+  mailbox mbx; 
+  task run(); 
+    for(int i=0;i<4;i++)begin 
+      bit a=i[1];//MSB 
+      bit b=i[0];//LSB 
+      mbx.put({a,b}); 
+    $display("generator test cases:a=%0b,b=%0b",a,b); 
+    end 
+  endtask 
+endclass 
+//driver 
+class driver; 
+  mailbox mbx; 
+  virtual inter vif; 
+  task run(); 
+   forever begin 
+    bit [1:0]temp; 
+    bit [1:0]a,b; 
+    mbx.get(temp); 
+    a=temp[1]; 
+    b=temp[0]; 
+    vif.a=a; 
+    vif.b=b; 
+    #50; 
+      $display("Driver applied values: a=%0b,b=%0b, -> Output 
+sum=%0b,carry=%0b",a,b,vif.sum,vif.carry); 
+    end 
+  endtask 
+endclass 
+module tb; 
+  inter haif(); 
+  ha dut (.a(haif.a),.b(haif.b),.sum(haif.sum),.carry(haif.carry)); 
+  generator gen; 
+  driver div; 
+  mailbox mbx; 
+  initial begin 
+    gen = new(); 
+    div = new(); 
+    mbx = new(); 
+    gen.mbx=mbx; 
+    div.mbx=mbx; 
+    div.vif=haif; 
+    fork 
+      gen.run(); 
+      div.run(); 
+    join 
+  end 
+  initial begin 
+    $dumpfile("dup.vcd"); 
+    $dumpvars; 
+  end 
+endmodule 
+
+Output: 
+# KERNEL: generator test cases:a=0,b=0 
+# KERNEL: generator test cases:a=0,b=1 
+# KERNEL: generator test cases:a=1,b=0 
+# KERNEL: generator test cases:a=1,b=1 
+# KERNEL: Driver applied values: a=0,b=0, -> Output sum=0,carry=0 
+# KERNEL: Driver applied values: a=0,b=1, -> Output sum=1,carry=0 
+# KERNEL: Driver applied values: a=1,b=0, -> Output sum=1,carry=0 
+# KERNEL: Driver applied values: a=1,b=1, -> Output sum=0,carry=1
