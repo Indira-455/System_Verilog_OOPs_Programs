@@ -1,0 +1,87 @@
+1 x 4 De-Multiplexer:
+Design Code:
+
+module demux_1_4(in,sel,out);
+  input in;
+  input [1:0] sel;
+  output logic[3:0]out;
+  always@(*)
+    begin
+      out=4'b0000;
+      case(sel)
+        2'b00:out[0]=in;
+        2'b01:out[1]=in;
+        2'b10:out[2]=in;
+        2'b11:out[3]=in;
+        default:out=1'b0;
+      endcase
+    end
+endmodule
+
+Test Bench:
+interface inter;
+  logic in;  
+  logic [1:0]sel;      
+  logic [3:0]out;    
+endinterface
+
+class generator;
+  mailbox mbx;
+  task run();
+    for (int i=0;i<4;i++) begin
+      bit in=$urandom_range(0,1);  
+      bit [1:0] sel=i;               
+ mbx.put({in, sel});
+      $display("Generator stimulus: in=%0b sel=%b", in, sel);
+    end
+  endtask
+endclass
+
+class driver;
+  mailbox mbx;
+  virtual inter vif;
+  task run();
+    forever begin
+      bit [2:0]temp; 
+      mbx.get(temp);
+      vif.in=temp[2];
+      vif.sel=temp[1:0];
+      #10;
+      $display("Driver values: in=%0b sel=%b -> out=%b", vif.in,vif.sel,vif.out);
+    end
+  endtask
+endclass
+
+module tb;
+  inter demuxif();
+  demux_1_4 dut (.in(demuxif.in),.sel(demuxif.sel),.out(demuxif.out));
+  generator gen;
+  driver drv;
+  mailbox mbx;
+  initial begin
+    gen = new();
+    drv = new();
+    mbx = new();
+    gen.mbx = mbx;
+    drv.mbx = mbx;
+    drv.vif = demuxif;
+    fork
+      gen.run();
+      drv.run();
+    join
+  end
+  initial begin
+    $dumpfile("dump.vcd");
+    $dumpvars;
+  end
+endmodule
+
+Output:
+# KERNEL: Generator stimulus: in=1 sel=00
+# KERNEL: Generator stimulus: in=0 sel=01
+# KERNEL: Generator stimulus: in=1 sel=10
+# KERNEL: Generator stimulus: in=0 sel=11
+# KERNEL: Driver values: in=1 sel=00 -> out=0001
+# KERNEL: Driver values: in=0 sel=01 -> out=0000
+# KERNEL: Driver values: in=1 sel=10 -> out=0100
+# KERNEL: Driver values: in=0 sel=11 -> out=0000
