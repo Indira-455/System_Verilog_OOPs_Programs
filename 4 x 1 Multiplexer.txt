@@ -1,0 +1,87 @@
+4 x 1 Multiplexer:
+Design Code:
+
+module mux_4_1(a,b,c,d,sel,out);
+  input a, b, c, d;
+  input [1:0] sel;
+   output logic out;
+  always @(*) begin
+    case(sel)
+      2'b00: out = a;
+      2'b01: out = b;
+      2'b10: out = c;
+      2'b11: out = d;
+    endcase
+  end
+endmodule
+
+Test Bench:
+interface inter;
+  logic a, b, c, d;   
+  logic [1:0] sel
+  logic out;
+endinterface
+
+class generator;
+  mailbox mbx;
+  task run();
+    for (int i = 0; i < 4; i++) begin
+      bit [1:0] sel = i;
+      mbx.put(sel);
+      $display("Generator: sel=%b", sel);
+    end
+  endtask
+endclass
+
+class driver;
+  mailbox mbx;
+  virtual inter vif;
+  task run();
+    forever begin
+      bit [1:0] sel;
+      mbx.get(sel);
+      vif.a = 0;
+      vif.b = 0;
+      vif.c = 1;
+      vif.d = 1;
+      vif.sel = sel;
+      #5; 
+      $display("Driver: a=%0b b=%0b c=%0b d=%0b sel=%b -> out=%0b",
+               vif.a, vif.b, vif.c, vif.d, vif.sel, vif.out);
+    end
+  endtask
+endclass
+
+module tb;
+  inter mxif();
+  mux_4_1 dut ( .a(mxif.a), .b(mxif.b), .c(mxif.c), .d(mxif.d),.sel(mxif.sel), .out(mxif.out) );
+  generator gen;
+  driver drv;
+  mailbox mbx;
+  initial begin
+    gen = new();
+    drv = new();
+    mbx = new();
+    gen.mbx = mbx;
+    drv.mbx = mbx;
+    drv.vif = mxif;
+    fork
+      gen.run();
+      drv.run();
+    join
+  end
+  initial begin
+    $dumpfile("dump.vcd");
+    $dumpvars;
+  end
+endmodule
+
+Output:
+# KERNEL: Generator: sel=00
+# KERNEL: Generator: sel=01
+# KERNEL: Generator: sel=10
+# KERNEL: Generator: sel=11
+# KERNEL: Driver: a=0 b=0 c=1 d=1 sel=00 -> out=0
+# KERNEL: Driver: a=0 b=0 c=1 d=1 sel=01 -> out=0
+# KERNEL: Driver: a=0 b=0 c=1 d=1 sel=10 -> out=1
+# KERNEL: Driver: a=0 b=0 c=1 d=1 sel=11 -> out=1
